@@ -1,0 +1,13 @@
+[package]
+name = "virt-texture"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+wgpu = "0.17"
+winit = "0.28"
+bytemuck = { version = "1", features = ["derive"] }
+nalgebra = "0.32"
+pollster = "0.3"
