@@ -1,6 +1,6 @@
 struct VertexInput {
     @location(0) position: vec3<f32>,
-    // @location(1) normal: vec3<f32>,
+    @location(1) normal: vec3<f32>,
     @location(2) uv: vec2<f32>,
 }
 
@@ -30,7 +30,6 @@ fn vs_prepass(in: VertexInput) -> PrepassInterpolators {
 }
 
 // From the uv, calculate the page index and mip level.
-//
 // Output Format: Rgba8Uint -> (page_x (8), page_y (8), mip_level (8), _padding);
 //
 // Reminder: page format = 128x128 (120 data, 4 padding on all sides).
@@ -58,7 +57,7 @@ fn fs_prepass(in: PrepassInterpolators) -> @location(0) vec4<u32> {
     let desired_lod = max(min_lod + feedback_lod_bias, 0.0);
     let page_coords = vec2<u32>(in.uv * f32(virtual_texture_page_width));
 
-    let out_texel = vec4<u32>(page_coords.x, page_coords.y, u32(desired_lod), 255u);
+    let out_texel = vec4<u32>(page_coords, u32(desired_lod), 255u);
     return out_texel;
 }
 
@@ -68,16 +67,16 @@ struct RenderInterpolators {
 };
 
 @vertex
-fn vs_render() -> RenderInterpolators {
+fn vs_render(in: VertexInput) -> RenderInterpolators {
     var result: RenderInterpolators;
-    result.position = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    result.tex_coords = vec2<f32>(0.0, 0.0);
+    result.position = vec4<f32>(in.position, 1.0);
+    result.tex_coords = in.uv;
     return result;
 }
 
 @fragment
 fn fs_render(in: RenderInterpolators) -> @location(0) vec4<f32> {
-    return vec4<f32>(1.0, 0.0, 0.0, 1.0);
+    return vec4<f32>(in.tex_coords, 0.0, 1.0);
 }
 
 struct DebugInterpolators {
@@ -132,12 +131,11 @@ fn fs_debug_prepass(in: DebugInterpolators) -> @location(0) vec4<f32> {
     let texture_index = vec2<u32>(in.tex_coords * texture_dims);
     let texel = textureLoad(debug_tex, texture_index, 0);
 
-
     let color = vec4<f32>(
-        // f32(texel.x) / 255,
-        // f32(texel.y) / 255,
-        in.tex_coords.x,
-        in.tex_coords.y,
+        f32(texel.x) / 255.,
+        f32(texel.y) / 255.,
+        // in.tex_coords.x,
+        // in.tex_coords.y,
         0.0,
         1.0
         // f32(texel.w),

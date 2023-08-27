@@ -1,68 +1,70 @@
 /// Four triangles, in the top left, top right, bottom left, and bottom right quadrants of the screen.
+/// position: [x, y, z] with (-1, -1) being bottom left and (1, 1) being top right
+/// tex_coords: [u, v] with (0, 0) being top left and (1, 1) being bottom right
 pub const FOUR_TRIANGLES: [Vertex; 12] = [
     // Top left triangle
-    Vertex {
-        position: [-1.0, -1.0, 0.0],
-        normal: [0.0, 0.0, 1.0],
-        tex_coords: [0.0, 1.0],
-    },
-    Vertex {
-        position: [-1.0, 0.0, 0.0],
-        normal: [0.0, 0.0, 1.0],
-        tex_coords: [0.0, 0.5],
-    },
-    Vertex {
-        position: [0.0, 1.0, 0.0],
-        normal: [0.0, 0.0, 1.0],
-        tex_coords: [0.5, 1.0],
-    },
-    // Top right triangle
-    Vertex {
-        position: [0.0, 1.0, 0.0],
-        normal: [0.0, 0.0, 1.0],
-        tex_coords: [0.5, 1.0],
-    },
-    Vertex {
-        position: [1.0, 0.0, 0.0],
-        normal: [0.0, 0.0, 1.0],
-        tex_coords: [1.0, 0.5],
-    },
-    Vertex {
-        position: [1.0, -1.0, 0.0],
-        normal: [0.0, 0.0, 1.0],
-        tex_coords: [1.0, 1.0],
-    },
-    // Bottom left triangle
-    Vertex {
-        position: [-1.0, 0.0, 0.0],
-        normal: [0.0, 0.0, 1.0],
-        tex_coords: [0.0, 0.5],
-    },
     Vertex {
         position: [-1.0, 1.0, 0.0],
         normal: [0.0, 0.0, 1.0],
         tex_coords: [0.0, 0.0],
     },
     Vertex {
-        position: [0.0, -1.0, 0.0],
+        position: [-1.0, 0.0, 0.0],
         normal: [0.0, 0.0, 1.0],
-        tex_coords: [0.5, 1.0],
+        tex_coords: [0.0, 0.5],
     },
-    // Bottom right triangle
     Vertex {
-        position: [0.0, -1.0, 0.0],
+        position: [0.0, 1.0, 0.0],
         normal: [0.0, 0.0, 1.0],
-        tex_coords: [0.5, 1.0],
+        tex_coords: [0.5, 0.0],
     },
+    // Top right triangle
     Vertex {
         position: [1.0, 1.0, 0.0],
         normal: [0.0, 0.0, 1.0],
         tex_coords: [1.0, 0.0],
     },
     Vertex {
+        position: [0.0, 1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+        tex_coords: [5.0, 1.0],
+    },
+    Vertex {
         position: [1.0, 0.0, 0.0],
         normal: [0.0, 0.0, 1.0],
         tex_coords: [1.0, 0.5],
+    },
+    // Bottom left triangle
+    Vertex {
+        position: [-1.0, -1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+        tex_coords: [0.0, 1.0],
+    },
+    Vertex {
+        position: [0.0, -1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+        tex_coords: [0.5, 1.0],
+    },
+    Vertex {
+        position: [-1.0, 0.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+        tex_coords: [0.0, 0.5],
+    },
+    // Bottom right triangle
+    Vertex {
+        position: [1.0, -1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+        tex_coords: [1.0, 1.0],
+    },
+    Vertex {
+        position: [1.0, 0.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+        tex_coords: [1.0, 0.5],
+    },
+    Vertex {
+        position: [0.0, -1.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+        tex_coords: [0.5, 1.0],
     },
 ];
 

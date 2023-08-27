@@ -67,6 +67,7 @@ fn main() {
             );
 
             let output = pipelines.debug_prepass_render(&wgpu_ctx, &mut command_encoder);
+
             wgpu_ctx
                 .queue
                 .submit(std::iter::once(command_encoder.finish()));

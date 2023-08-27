@@ -1,10 +1,10 @@
 use std::num::NonZeroU64;
 
 pub struct WgpuContext {
-    surface: wgpu::Surface,
-    surface_format: wgpu::TextureFormat,
+    pub surface: wgpu::Surface,
+    pub surface_format: wgpu::TextureFormat,
     pub window: winit::window::Window,
-    window_size: winit::dpi::PhysicalSize<u32>,
+    pub window_size: winit::dpi::PhysicalSize<u32>,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
 }
@@ -44,15 +44,19 @@ impl WgpuContext {
             )
             .await
             .unwrap();
-        surface.configure(&device, &wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface_format,
-            width: window_size.width,
-            height: window_size.height,
-            present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::PostMultiplied,
-            view_formats: vec![],
-        });
+
+        surface.configure(
+            &device,
+            &wgpu::SurfaceConfiguration {
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                format: surface_format,
+                width: window_size.width,
+                height: window_size.height,
+                present_mode: wgpu::PresentMode::Fifo,
+                alpha_mode: wgpu::CompositeAlphaMode::Opaque,
+                view_formats: vec![],
+            },
+        );
 
         Self {
             surface,
@@ -136,11 +140,8 @@ impl VirtualTexturingPipelines {
                         count: None,
                     }],
                 });
-        let prepass_bind_group_layouts: Vec<&wgpu::BindGroupLayout> = [
-            &[&lod_bias_bind_group_layout],
-            &bind_group_layouts[..],
-        ]
-        .concat();
+        let prepass_bind_group_layouts: Vec<&wgpu::BindGroupLayout> =
+            [&[&lod_bias_bind_group_layout], &bind_group_layouts[..]].concat();
         let prepass_pipeline_layout =
             context
                 .device
@@ -346,8 +347,49 @@ impl VirtualTexturingPipelines {
         render_pass.draw(0..vertex_count as u32, 0..1);
     }
 
+    pub fn render(
+        &self,
+        command_encoder: &mut wgpu::CommandEncoder,
+        surface: &wgpu::SurfaceTexture,
+        vertex_buffer: &wgpu::Buffer,
+        vertex_count: usize,
+    ) {
+        let ref view = surface
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let ref depth_view = self.render_depth_texture.create_view(&Default::default());
+
+        let mut render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("render pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
+                    store: true,
+                },
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: depth_view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: true,
+                }),
+                stencil_ops: None,
+            }),
+        });
+
+        render_pass.set_pipeline(&self.render_pipeline);
+        render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+        render_pass.draw(0..vertex_count as u32, 0..1);
+    }
+
     #[cfg(debug_assertions)]
-    pub fn debug_prepass_render(&self, context: &WgpuContext, command_encoder: &mut wgpu::CommandEncoder) -> wgpu::SurfaceTexture {
+    pub fn debug_prepass_render(
+        &self,
+        context: &WgpuContext,
+        command_encoder: &mut wgpu::CommandEncoder,
+    ) -> wgpu::SurfaceTexture {
         let output = context.surface.get_current_texture().unwrap();
         let view = output
             .texture
@@ -358,14 +400,12 @@ impl VirtualTexturingPipelines {
             .create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("debug prepass texture bind group"),
                 layout: &self.debug_prepass_pipeline.get_bind_group_layout(0),
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(
-                            &self.prepass_texture.create_view(&Default::default()),
-                        ),
-                    },
-                ],
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(
+                        &self.prepass_texture.create_view(&Default::default()),
+                    ),
+                }],
             });
 
         let mut render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
