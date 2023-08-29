@@ -22,12 +22,12 @@ pub const FOUR_TRIANGLES: [Vertex; 12] = [
     Vertex {
         position: [1.0, 1.0, 0.0],
         normal: [0.0, 0.0, 1.0],
-        tex_coords: [1.0, 0.0],
+        tex_coords: [1.0, 1.0],
     },
     Vertex {
         position: [0.0, 1.0, 0.0],
         normal: [0.0, 0.0, 1.0],
-        tex_coords: [5.0, 1.0],
+        tex_coords: [0.5, 1.0],
     },
     Vertex {
         position: [1.0, 0.0, 0.0],

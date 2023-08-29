@@ -13,6 +13,14 @@ fn main() {
 
     let wgpu_ctx = pollster::block_on(WgpuContext::new(window));
     let mut pipelines = VirtualTexturingPipelines::new(&wgpu_ctx, &[]);
+    let mut command_encoder =
+        wgpu_ctx
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("lod bias"),
+            });
+    pipelines.set_lod_bias(0., &mut command_encoder);
+    wgpu_ctx.queue.submit(Some(command_encoder.finish()));
 
     event_loop.run_return(|event, _, control_flow| match event {
         winit::event::Event::WindowEvent { event, .. } => match event {
@@ -23,13 +31,7 @@ fn main() {
         },
         winit::event::Event::RedrawRequested(_) => {
             println!("drawing");
-            let mut command_encoder =
-                wgpu_ctx
-                    .device
-                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                        label: Some("prepass encoder"),
-                    });
-            pipelines.set_lod_bias(0.0, &mut command_encoder);
+            let mut command_encoder = wgpu_ctx.device.create_command_encoder(&Default::default());
             pipelines.prepass(&mut command_encoder, &FOUR_TRIANGLES);
             let output = pipelines.debug_prepass_render(&mut command_encoder);
 

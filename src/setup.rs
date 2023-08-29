@@ -1,4 +1,4 @@
-use std::num::NonZeroU64;
+use std::{f32, num::NonZeroU64};
 
 use wgpu::util::DeviceExt;
 
@@ -27,6 +27,8 @@ impl WgpuContext {
             })
             .await
             .unwrap();
+        println!("Adapter features: {:?}", adapter.features());
+
         let surface_format = surface
             .get_capabilities(&adapter)
             .formats
@@ -79,16 +81,26 @@ pub struct VirtualTexturingPipelines<'a> {
     prepass_depth_texture: wgpu::Texture,
     render_pipeline: wgpu::RenderPipeline,
     render_depth_texture: wgpu::Texture,
-    #[cfg(debug_assertions)]
-    debug_prepass_pipeline: wgpu::RenderPipeline,
     vertices: Option<(wgpu::Buffer, u32)>,
     lod_bias_buffer: wgpu::Buffer,
     lod_bias_bind_group: wgpu::BindGroup,
+    page_table_texture: wgpu::Texture,
+    #[cfg(debug_assertions)]
+    debug_prepass_pipeline: wgpu::RenderPipeline,
 }
 
 impl<'a> VirtualTexturingPipelines<'a> {
+    const PREPASS_RENDER_RATIO: f32 = 0.1;
+
     /// The bind group layouts for the render pipeline.
-    pub fn new(context: &'a WgpuContext, bind_group_layouts: &[&wgpu::BindGroupLayout]) -> Self {
+    pub fn new(
+        context: &'a WgpuContext,
+        bind_group_layouts: &[&wgpu::BindGroupLayout],
+        virtual_texture_page_side: u32,
+    ) -> Self {
+        let prepass_shader = context
+            .device
+            .create_shader_module(wgpu::include_wgsl!("prepass.wgsl"));
         let shader = context
             .device
             .create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
@@ -182,7 +194,7 @@ impl<'a> VirtualTexturingPipelines<'a> {
                     layout: Some(&prepass_pipeline_layout),
                     primitive: pipeline_primitive_state,
                     vertex: wgpu::VertexState {
-                        module: &shader,
+                        module: &prepass_shader,
                         entry_point: "vs_prepass",
                         buffers: &[super::vertex::Vertex::BUFFER_LAYOUT],
                     },
@@ -195,7 +207,7 @@ impl<'a> VirtualTexturingPipelines<'a> {
                     }),
                     multisample: wgpu::MultisampleState::default(),
                     fragment: Some(wgpu::FragmentState {
-                        module: &shader,
+                        module: &prepass_shader,
                         entry_point: "fs_prepass",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: prepass_texture.format(),
@@ -296,7 +308,7 @@ impl<'a> VirtualTexturingPipelines<'a> {
                     label: Some("debug prepass pipeline"),
                     layout: Some(&pipeline_layout),
                     vertex: wgpu::VertexState {
-                        module: &shader,
+                        module: &prepass_shader,
                         entry_point: "vs_debug_prepass",
                         buffers: &[],
                     },
@@ -304,7 +316,7 @@ impl<'a> VirtualTexturingPipelines<'a> {
                     depth_stencil: None,
                     multisample: Default::default(),
                     fragment: Some(wgpu::FragmentState {
-                        module: &shader,
+                        module: &prepass_shader,
                         entry_point: "fs_debug_prepass",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: context.surface_format,
@@ -316,6 +328,22 @@ impl<'a> VirtualTexturingPipelines<'a> {
                 })
         };
 
+        assert!(virtual_texture_page_side.is_power_of_two());
+        let page_table_texture = context.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Page table texture"),
+            size: wgpu::Extent3d {
+                width: virtual_texture_page_side,
+                height: virtual_texture_page_side,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: f32::log2(virtual_texture_page_side as f32) as u32,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Uint,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
         Self {
             device: &context.device,
             surface: &context.surface,
@@ -325,10 +353,11 @@ impl<'a> VirtualTexturingPipelines<'a> {
             prepass_depth_texture,
             render_pipeline,
             render_depth_texture,
-            #[cfg(debug_assertions)]
-            debug_prepass_pipeline,
             lod_bias_bind_group,
             lod_bias_buffer,
+            page_table_texture,
+            #[cfg(debug_assertions)]
+            debug_prepass_pipeline,
         }
     }
 
@@ -337,6 +366,7 @@ impl<'a> VirtualTexturingPipelines<'a> {
     /// The level of detail is used during the prepass to determine which mip level to use for each
     /// texture page.
     pub fn set_lod_bias(&mut self, lod_bias: f32, command_encoder: &mut wgpu::CommandEncoder) {
+        let lod_bias = f32::log2(Self::PREPASS_RENDER_RATIO) + lod_bias;
         let lod_bias_stg = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -430,11 +460,10 @@ impl<'a> VirtualTexturingPipelines<'a> {
             }),
         });
 
-
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_vertex_buffer(0, vertices.slice(..));
         render_pass.draw(0..*vertex_len, 0..1);
-        
+
         output
     }
 

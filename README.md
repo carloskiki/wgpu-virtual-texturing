@@ -2,6 +2,10 @@
 
 This is an experimental project which aims at making a Virtual Texturing System with the `wgpu` library in rust.
 
+## TODO's
+- [ ] Look into texture compression (BC7 look good, Bc7RgbaUnorm)
+- [ ] Make page table texture (RGBA8Uint is a good bet)
+
 ### **What is Virtual Texturing?**
 
 Virtual Texturing tries to solve the issue of sampling massive textures on the GPU. Nowadays, game worlds are huge, and require
@@ -11,12 +15,13 @@ to respect GPU constraints. Virtual Texturing solves this issue by making use of
 (akin to [Virtual Memory](https://en.wikipedia.org/wiki/Virtual_memory)). This is best represented by the following image:
 ![Virtual Texturing Basic Idea](./assets/virtual_texturing_base.jpg "Virtual Texturing Idea")
 
-As can be seen, the "virtual" texture is only partly uploaded to the GPU and constitutes the "physical" texture.
+As can be seen, the "virtual" texture is only partly uploaded to the GPU and that part constitutes the "physical" texture.
 
 ### Terminology
 
-Virtual texture: The big texture that can't be loaded all at once on the GPU.
-Physical texture: A texture built every frame that lives on the GPU. It is the required part of the virtual texture.
+- *Virtual texture:* The big texture which texture coordinates point to. The texture that can't be/isn't loaded all at once on the GPU.
+- *Physical texture:* A texture built every frame that lives on the GPU. It is the required part of the virtual texture.
+- *Page table:* An indirection table that maps texture coordinates from the virtual texture to the physical texture.
 
 ## Texture Streaming
 
