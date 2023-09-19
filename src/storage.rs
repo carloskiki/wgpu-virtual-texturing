@@ -195,9 +195,49 @@ impl MipLevelGen {
         first_index: usize,
         storage: &mut TextureStorage,
     ) -> Result<(), TextureStorageError> {
+        use image::{imageops::resize, ImageBuffer, Rgba};
+
         assert!(self.stored_row.is_none());
         assert!(first_index % 2 == 0);
-        let mipped_row = mip_two_rows(rows);
+        assert!(rows.0.len() == rows.1.len());
+        // check that there is 128px of height, and that there is a multiple of 2 pages.
+        assert!(rows.0.len() % (PAGE_SIZE * 2) == 0);
+
+        let row_width = rows.0.len() / PAGE_SIZE;
+        let horizontal_border_size = PAGE_BORDER_SIZE * row_width;
+        let bottom_border_start = rows.0.len() - horizontal_border_size;
+        let top_border_end = horizontal_border_size;
+
+        let from_image_buffer = ImageBuffer::<Rgba<u8>, _>::from_raw(
+            row_width as u32,
+            (PAGE_SIZE - 4) as u32,
+            &rows.0[0..bottom_border_start],
+        )
+        .unwrap();
+
+        let mipped_top = resize(
+            &from_image_buffer,
+            row_width as u32 / 2,
+            PAGE_SIZE as u32 / 2,
+            image::imageops::FilterType::Nearest,
+        );
+        let mut mipped_buffer = mipped_top.into_raw();
+
+        let from_image_buffer = ImageBuffer::<Rgba<u8>, _>::from_raw(
+            row_width as u32,
+            (PAGE_SIZE - 4) as u32,
+            &rows.1[top_border_end..],
+        )
+        .unwrap();
+        let mipped_bottom = resize(
+            &from_image_buffer,
+            row_width as u32 / 2,
+            PAGE_SIZE as u32 / 2,
+            image::imageops::FilterType::Nearest,
+        );
+        mipped_buffer.extend_from_slice(&mipped_bottom.into_raw());
+        let mipped_row = mipped_buffer.into_boxed_slice();
+
         if let Some(ref mut next_mip) = self.next_mip {
             next_mip.write_row(mipped_row, first_index / 2, storage)?;
         }
@@ -220,48 +260,6 @@ impl MipLevelGen {
         self.mip_two_rows(rows, first_index, storage)?;
         Ok(())
     }
-}
-
-fn mip_two_rows(rows: (&[u8], &[u8])) -> Box<[u8]> {
-    use image::{imageops::resize, ImageBuffer, Rgba};
-    assert!(rows.0.len() == rows.1.len());
-    // check that there is 128px of height, and that there is a multiple of 2 pages.
-    assert!(rows.0.len() % (PAGE_SIZE * 2) == 0);
-
-    let row_width = rows.0.len() / PAGE_SIZE;
-    let horizontal_border_size = PAGE_BORDER_SIZE * row_width;
-    let bottom_border_start = rows.0.len() - horizontal_border_size;
-    let top_border_end = horizontal_border_size;
-
-    let from_image_buffer = ImageBuffer::<Rgba<u8>, _>::from_raw(
-        row_width as u32,
-        (PAGE_SIZE - 4) as u32,
-        &rows.0[0..bottom_border_start],
-    )
-    .unwrap();
-
-    let mipped_top = resize(
-        &from_image_buffer,
-        row_width as u32 / 2,
-        PAGE_SIZE as u32 / 2,
-        image::imageops::FilterType::Nearest,
-    );
-    let mut mipped_buffer = mipped_top.into_raw();
-
-    let from_image_buffer = ImageBuffer::<Rgba<u8>, _>::from_raw(
-        row_width as u32,
-        (PAGE_SIZE - 4) as u32,
-        &rows.1[top_border_end..],
-    )
-    .unwrap();
-    let mipped_bottom = resize(
-        &from_image_buffer,
-        row_width as u32 / 2,
-        PAGE_SIZE as u32 / 2,
-        image::imageops::FilterType::Nearest,
-    );
-    mipped_buffer.extend_from_slice(&mipped_bottom.into_raw());
-    mipped_buffer.into_boxed_slice()
 }
 
 #[derive(Error, Debug)]
