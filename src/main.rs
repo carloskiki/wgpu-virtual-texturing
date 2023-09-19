@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use virt_texture::{
-    setup::{WgpuContext, VirtualTexturingContext},
     pipelines::Pipelines,
+    setup::{VirtualTexturingContext, WgpuContext},
     textures::Textures,
     vertex::FOUR_TRIANGLES,
 };
@@ -24,15 +24,18 @@ fn main() {
         pipelines,
     };
 
-
     let mut command_encoder =
-        context.wgpu_context
+        context
+            .wgpu_context
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("lod bias"),
             });
     context.set_lod_bias(0., &mut command_encoder);
-    context.wgpu_context.queue.submit(Some(command_encoder.finish()));
+    context
+        .wgpu_context
+        .queue
+        .submit(Some(command_encoder.finish()));
 
     event_loop.run_return(|event, _, control_flow| match event {
         winit::event::Event::WindowEvent { event, .. } => match event {
@@ -43,11 +46,17 @@ fn main() {
         },
         winit::event::Event::RedrawRequested(_) => {
             println!("drawing");
-            let mut command_encoder = context.wgpu_context.device.create_command_encoder(&Default::default());
+            let mut command_encoder = context
+                .wgpu_context
+                .device
+                .create_command_encoder(&Default::default());
             context.prepass(&mut command_encoder, &FOUR_TRIANGLES);
             let output = context.debug_prepass_render(&mut command_encoder);
 
-            context.wgpu_context.queue.submit(Some(command_encoder.finish()));
+            context
+                .wgpu_context
+                .queue
+                .submit(Some(command_encoder.finish()));
             output.present();
         }
         _ => (),

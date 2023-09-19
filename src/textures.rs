@@ -38,21 +38,20 @@ impl Textures {
         let max_side_len = context.device.limits().max_texture_dimension_2d;
         assert!(virtual_texture_page_wide.is_power_of_two());
         debug_assert!(virtual_texture_page_wide <= max_side_len);
-        let page_table_texture =
-            context.device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("Page table texture"),
-                size: wgpu::Extent3d {
-                    width: virtual_texture_page_wide,
-                    height: virtual_texture_page_wide,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: f32::log2(virtual_texture_page_wide as f32) as u32,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Uint,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                view_formats: &[],
-            });
+        let page_table_texture = context.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Page table texture"),
+            size: wgpu::Extent3d {
+                width: virtual_texture_page_wide,
+                height: virtual_texture_page_wide,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: f32::log2(virtual_texture_page_wide as f32) as u32,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Uint,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
         let physical_texture = context.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Physical texture"),
             size: wgpu::Extent3d {

@@ -1,6 +1,6 @@
 use std::sync::{mpsc::Sender, Arc};
 
-use crate::{setup::WgpuContext, textures::Textures, storage::TextureStorage};
+use crate::{setup::WgpuContext, storage::TextureStorage, textures::Textures};
 
 const PREPASS_BYTES_PER_TEXEL: usize = 4;
 

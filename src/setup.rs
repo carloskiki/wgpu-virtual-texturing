@@ -2,7 +2,7 @@ use std::{f32, num::NonZeroU64, sync::Arc};
 
 use wgpu::util::DeviceExt;
 
-use crate::{textures::Textures, pipelines::Pipelines};
+use crate::{pipelines::Pipelines, textures::Textures};
 
 pub struct WgpuContext {
     pub surface: wgpu::Surface,
@@ -80,7 +80,6 @@ pub struct VirtualTexturingContext {
     pub textures: Arc<Textures>,
     pub pipelines: Pipelines,
 }
-
 
 impl VirtualTexturingContext {
     /// Set the level of detail bias for the following passes.
@@ -162,7 +161,10 @@ impl VirtualTexturingContext {
         let ref view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-        let ref depth_view = self.pipelines.render_depth_texture.create_view(&Default::default());
+        let ref depth_view = self
+            .pipelines
+            .render_depth_texture
+            .create_view(&Default::default());
 
         let (vertices, vertex_len) = self.pipelines.vertices.as_ref().unwrap();
 
@@ -203,16 +205,25 @@ impl VirtualTexturingContext {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let texture_bind_group = self.wgpu_context.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("debug prepass texture bind group"),
-            layout: &self.pipelines.debug_prepass_pipeline.get_bind_group_layout(0),
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(
-                    &self.textures.prepass_texture.create_view(&Default::default()),
-                ),
-            }],
-        });
+        let texture_bind_group =
+            self.wgpu_context
+                .device
+                .create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("debug prepass texture bind group"),
+                    layout: &self
+                        .pipelines
+                        .debug_prepass_pipeline
+                        .get_bind_group_layout(0),
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(
+                            &self
+                                .textures
+                                .prepass_texture
+                                .create_view(&Default::default()),
+                        ),
+                    }],
+                });
 
         let mut render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("debug prepass render pass"),

@@ -155,7 +155,11 @@ pub struct CameraModule {
 }
 
 impl CameraModule {
-    pub fn from_parts(camera: Camera, projection: CameraProjection, controller: CameraController) -> Self {
+    pub fn from_parts(
+        camera: Camera,
+        projection: CameraProjection,
+        controller: CameraController,
+    ) -> Self {
         Self {
             camera,
             projection,
