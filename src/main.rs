@@ -1,5 +1,9 @@
+use std::sync::Arc;
+
 use virt_texture::{
-    setup::{VirtualTexturingPipelines, WgpuContext},
+    setup::{WgpuContext, VirtualTexturingContext},
+    pipelines::Pipelines,
+    textures::Textures,
     vertex::FOUR_TRIANGLES,
 };
 use winit::platform::run_return::EventLoopExtRunReturn;
@@ -11,16 +15,24 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let wgpu_ctx = pollster::block_on(WgpuContext::new(window));
-    let mut pipelines = VirtualTexturingPipelines::new(&wgpu_ctx, &[]);
+    let wgpu_context = Arc::new(pollster::block_on(WgpuContext::new(window)));
+    let textures = Arc::new(Textures::new(&wgpu_context, 2048));
+    let pipelines = Pipelines::new(&wgpu_context, &textures, &[]);
+    let mut context = VirtualTexturingContext {
+        wgpu_context,
+        textures,
+        pipelines,
+    };
+
+
     let mut command_encoder =
-        wgpu_ctx
+        context.wgpu_context
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("lod bias"),
             });
-    pipelines.set_lod_bias(0., &mut command_encoder);
-    wgpu_ctx.queue.submit(Some(command_encoder.finish()));
+    context.set_lod_bias(0., &mut command_encoder);
+    context.wgpu_context.queue.submit(Some(command_encoder.finish()));
 
     event_loop.run_return(|event, _, control_flow| match event {
         winit::event::Event::WindowEvent { event, .. } => match event {
@@ -31,11 +43,11 @@ fn main() {
         },
         winit::event::Event::RedrawRequested(_) => {
             println!("drawing");
-            let mut command_encoder = wgpu_ctx.device.create_command_encoder(&Default::default());
-            pipelines.prepass(&mut command_encoder, &FOUR_TRIANGLES);
-            let output = pipelines.debug_prepass_render(&mut command_encoder);
+            let mut command_encoder = context.wgpu_context.device.create_command_encoder(&Default::default());
+            context.prepass(&mut command_encoder, &FOUR_TRIANGLES);
+            let output = context.debug_prepass_render(&mut command_encoder);
 
-            wgpu_ctx.queue.submit(Some(command_encoder.finish()));
+            context.wgpu_context.queue.submit(Some(command_encoder.finish()));
             output.present();
         }
         _ => (),

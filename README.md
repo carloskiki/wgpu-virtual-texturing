@@ -3,7 +3,7 @@
 This is an experimental project which aims at making a Virtual Texturing System with the `wgpu` library in rust.
 
 ## TODO's
-- [ ] Look into texture compression (BC7 look good, Bc7RgbaUnorm)
+- [ ] Look into texture compression (Probably going to use astc)
 - [ ] Make page table texture (RGBA8Uint is a good bet)
 
 ### **What is Virtual Texturing?**
@@ -33,6 +33,7 @@ Texture streaming is needed to load parts of the virtual texture from the disk t
 
 
 ## Sources
+- [Nvidia Powerpoint](https://www.nvidia.com/content/GTC-2010/pdfs/2152_GTC2010.pdf)
 - [Virtual Texture Paper 2012](https://www.mrelusive.com/publications/papers/Software-Virtual-Textures.pdf)
 - [Virtual Texture Thesis 2010](https://www.cg.tuwien.ac.at/research/publications/2010/Mayer-2010-VT/Mayer-2010-VT-Thesis.pdf)
 - [Virtual Textures Website Sean Barret](https://silverspaceship.com/src/svt/)
