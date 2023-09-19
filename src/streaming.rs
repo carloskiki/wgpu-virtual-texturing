@@ -1,18 +1,8 @@
-use std::{
-    fs::{File, OpenOptions},
-    io::{Read, Write},
-    path::PathBuf,
-    sync::{mpsc::Sender, Arc},
-};
+use std::sync::{mpsc::Sender, Arc};
 
-use crate::{setup::WgpuContext, textures::Textures};
-use miniserde::{Deserialize, MiniSerialize};
-use thiserror::Error;
+use crate::{setup::WgpuContext, textures::Textures, storage::TextureStorage};
 
 const PREPASS_BYTES_PER_TEXEL: usize = 4;
-const PAGE_SIZE: usize = 128;
-const PAGE_STRIDE: usize = PAGE_SIZE - 2 * PAGE_BORDER_SIZE;
-const PAGE_BORDER_SIZE: usize = 4;
 
 pub struct StreamingHandle {
     texture_storage: TextureStorage,

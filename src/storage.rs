@@ -1,3 +1,16 @@
+use std::{
+    fs::File,
+    io::{Read, Write},
+    path::PathBuf,
+};
+
+use miniserde::{Deserialize, MiniSerialize};
+use thiserror::Error;
+
+const PAGE_SIZE: usize = 128;
+const PAGE_STRIDE: usize = PAGE_SIZE - 2 * PAGE_BORDER_SIZE;
+const PAGE_BORDER_SIZE: usize = 4;
+
 pub struct TextureStorage {
     directory: std::path::PathBuf,
     metadata: TextureMetadata,
