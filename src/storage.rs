@@ -4,6 +4,7 @@ use std::{
     path::PathBuf,
 };
 
+use image::Pixel;
 use miniserde::{Deserialize, MiniSerialize};
 use thiserror::Error;
 
@@ -74,13 +75,20 @@ impl TextureStorage {
     }
 
     fn write_row(&mut self, mip: u8, row: u16, data: &[u8]) -> Result<(), TextureStorageError> {
-        let page_count = (data.len() / self.metadata.bytes_per_texel as usize / PAGE_SIZE
+        let page_count = (data.len() / PAGE_SIZE / self.metadata.bytes_per_texel as usize
             - 2 * PAGE_BORDER_SIZE)
             / PAGE_STRIDE;
         assert_eq!(page_count, (self.metadata.side_len >> mip) as usize);
         let texture_texel_width = data.len() / self.metadata.bytes_per_texel as usize / PAGE_SIZE;
 
-        let mut file = self.open_row_file(mip, row, std::fs::OpenOptions::new().truncate(true))?;
+        let mut file = self.open_row_file(
+            mip,
+            row,
+            std::fs::OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true),
+        )?;
         (0..page_count).try_for_each(|page| {
             let column_offset = page * PAGE_STRIDE;
             (0..PAGE_SIZE).try_for_each(|page_row| -> Result<(), TextureStorageError> {
@@ -101,13 +109,14 @@ impl TextureStorage {
     ) -> Result<(), TextureStorageError> {
         let texture_side_len = self.metadata.side_len;
         let texture_texel_width = texture_side_len as usize * PAGE_STRIDE + 2 * PAGE_BORDER_SIZE;
-        let buffer_border_offset = texture_texel_width * PAGE_BORDER_SIZE;
+        let buffer_border_offset = texture_texel_width * PAGE_BORDER_SIZE * 2 * self.metadata.bytes_per_texel as usize;
 
-        let mut buffer: Vec<u8> = Vec::with_capacity(
+        let mut buffer: Vec<u8> = vec![
+            0;
             self.metadata.bytes_per_texel as usize
                 * texture_texel_width
-                * (PAGE_STRIDE * 2 + PAGE_BORDER_SIZE * 2),
-        );
+                * (PAGE_STRIDE * 2 + PAGE_BORDER_SIZE * 2)
+        ];
 
         let mut mipmap_generator = MipLevelGen::from_mip(self.metadata.mip_levels, 0);
 
@@ -118,7 +127,8 @@ impl TextureStorage {
             // Read in the next 2 rows
             byte_stream.read_exact(&mut buffer[buffer_border_offset..])?;
 
-            let page_size_rows = PAGE_SIZE * texture_texel_width;
+            let page_size_rows =
+                PAGE_SIZE * texture_texel_width * self.metadata.bytes_per_texel as usize;
             let first_row = &buffer[0..page_size_rows];
             let second_row_start = buffer.capacity() - page_size_rows;
             let second_row = &buffer[second_row_start..];
@@ -130,12 +140,12 @@ impl TextureStorage {
                 self,
             )?;
 
+            // Move bottom border to top border
+            let bottom_border = buffer.capacity() - buffer_border_offset;
+            buffer.copy_within(bottom_border.., 0);
+
             Ok::<(), TextureStorageError>(())
         })?;
-
-        // Move bottom border to top border
-        let bottom_border = buffer.capacity() - buffer_border_offset;
-        buffer.copy_within(bottom_border.., 0);
 
         Ok(())
     }
@@ -148,7 +158,7 @@ impl TextureStorage {
     ) -> Result<std::fs::File, TextureStorageError> {
         let file_name = format!("{}-{}", mip, row);
         opts.open(self.directory.join(file_name))
-            .map_err(TextureStorageError::IoError)
+            .map_err(TextureStorageError::from)
     }
 }
 
@@ -161,7 +171,7 @@ struct MipLevelGen {
 impl MipLevelGen {
     /// Creates a new generator
     fn from_mip(mip: u8, base_mip: u8) -> Self {
-        let next_mip = (mip < base_mip).then(|| Box::new(Self::from_mip(mip, base_mip + 1)));
+        let next_mip = (mip > base_mip).then(|| Box::new(Self::from_mip(mip, base_mip + 1)));
         Self {
             stored_row: None,
             mip_level: base_mip,
@@ -177,6 +187,7 @@ impl MipLevelGen {
         storage: &mut TextureStorage,
     ) -> Result<(), TextureStorageError> {
         storage.write_row(self.mip_level, index as u16, &row)?;
+        // println!("Wrote row {} at mip {}", index, self.mip_level);
 
         if self.stored_row.is_none() {
             assert!(index % 2 == 0);
@@ -189,6 +200,7 @@ impl MipLevelGen {
         Ok(())
     }
 
+    // TODO: Refactor this method
     fn mip_two_rows(
         &mut self,
         rows: (&[u8], &[u8]),
@@ -196,7 +208,6 @@ impl MipLevelGen {
         storage: &mut TextureStorage,
     ) -> Result<(), TextureStorageError> {
         use image::{imageops::resize, ImageBuffer, Rgba};
-
         assert!(self.stored_row.is_none());
         assert!(first_index % 2 == 0);
         assert!(rows.0.len() == rows.1.len());
@@ -204,34 +215,37 @@ impl MipLevelGen {
         assert!(rows.0.len() % (PAGE_SIZE * 2) == 0);
 
         let row_width = rows.0.len() / PAGE_SIZE;
+        // TODO: Hardcoded for RGBA8, but should support any texture format.
+        let row_texel_width = row_width / 4;
         let horizontal_border_size = PAGE_BORDER_SIZE * row_width;
         let bottom_border_start = rows.0.len() - horizontal_border_size;
         let top_border_end = horizontal_border_size;
 
-        let from_image_buffer = ImageBuffer::<Rgba<u8>, _>::from_raw(
-            row_width as u32,
-            (PAGE_SIZE - 4) as u32,
-            &rows.0[0..bottom_border_start],
+        let from_image_buffer = ImageBuffer::<Rgba<u8>, &[u8]>::from_raw(
+            row_texel_width as u32,
+            (PAGE_SIZE - PAGE_BORDER_SIZE) as u32,
+            &rows.0[..bottom_border_start],
         )
         .unwrap();
 
         let mipped_top = resize(
             &from_image_buffer,
-            row_width as u32 / 2,
+            row_texel_width as u32 / 2 + PAGE_BORDER_SIZE as u32,
             PAGE_SIZE as u32 / 2,
             image::imageops::FilterType::Nearest,
         );
         let mut mipped_buffer = mipped_top.into_raw();
 
+
         let from_image_buffer = ImageBuffer::<Rgba<u8>, _>::from_raw(
-            row_width as u32,
+            row_texel_width as u32,
             (PAGE_SIZE - 4) as u32,
             &rows.1[top_border_end..],
         )
         .unwrap();
         let mipped_bottom = resize(
             &from_image_buffer,
-            row_width as u32 / 2,
+            row_texel_width as u32 / 2 + PAGE_BORDER_SIZE as u32,
             PAGE_SIZE as u32 / 2,
             image::imageops::FilterType::Nearest,
         );
@@ -266,7 +280,6 @@ impl MipLevelGen {
 pub enum TextureStorageError {
     #[error("io error: {0}")]
     IoError(#[from] std::io::Error),
-
     #[error("could not parse metadata file, this can only occur if the file was edited manually")]
     Deserialization(#[from] miniserde::Error),
 }
@@ -330,10 +343,12 @@ fn next_power_of_two(mut n: u16) -> u16 {
 
 #[cfg(test)]
 mod test {
+    use std::io::{repeat, Read};
+
     use assert_fs::{fixture::TempDir, prelude::*};
     use predicates::prelude::*;
 
-    use super::{TextureMetadata, TextureStorage};
+    use super::{TextureMetadata, TextureStorage, PAGE_BORDER_SIZE, PAGE_STRIDE};
 
     #[test]
     fn create_texture_storage() {
@@ -357,5 +372,24 @@ mod test {
             .unwrap();
 
         let _ = TextureStorage::load(Some(path), None).unwrap();
+    }
+
+    #[test]
+    fn store_256_texture() -> Result<(), Box<dyn std::error::Error>> {
+        let (mut texture_storage, _temp_dir) = texture_storage_from_mip(256_usize.ilog2() as u8);
+        let bytes =
+            repeat(0xFF).take(((256 * PAGE_STRIDE + 2 * PAGE_BORDER_SIZE).pow(2) * 4) as u64);
+        texture_storage.import_texture(bytes)?;
+
+        Ok(())
+    }
+
+    fn texture_storage_from_mip(mip_levels: u8) -> (TextureStorage, TempDir) {
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().as_os_str().to_str().unwrap();
+        let storage =
+            TextureStorage::new(TextureMetadata::from_mip(mip_levels, 4), Some(path), None)
+                .unwrap();
+        (storage, temp_dir)
     }
 }

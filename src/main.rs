@@ -51,13 +51,13 @@ fn main() {
                 .device
                 .create_command_encoder(&Default::default());
             context.prepass(&mut command_encoder, &FOUR_TRIANGLES);
-            let output = context.debug_prepass_render(&mut command_encoder);
+            // let output = context.debug_prepass_render(&mut command_encoder);
 
-            context
-                .wgpu_context
-                .queue
-                .submit(Some(command_encoder.finish()));
-            output.present();
+            // context
+            //     .wgpu_context
+            //     .queue
+            //     .submit(Some(command_encoder.finish()));
+            // output.present();
         }
         _ => (),
     });
