@@ -6,7 +6,7 @@ use virt_texture::{
     textures::Textures,
     vertex::FOUR_TRIANGLES,
 };
-use winit::platform::run_return::EventLoopExtRunReturn;
+use winit::{platform::run_return::EventLoopExtRunReturn, event::{Event, WindowEvent}, event_loop::ControlFlow};
 
 fn main() {
     let mut event_loop = winit::event_loop::EventLoop::new();
@@ -38,13 +38,10 @@ fn main() {
         .submit(Some(command_encoder.finish()));
 
     event_loop.run_return(|event, _, control_flow| match event {
-        winit::event::Event::WindowEvent { event, .. } => match event {
-            winit::event::WindowEvent::CloseRequested => {
-                *control_flow = winit::event_loop::ControlFlow::Exit
-            }
-            _ => (),
+        Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
+                *control_flow = ControlFlow::Exit
         },
-        winit::event::Event::RedrawRequested(_) => {
+        Event::RedrawRequested(_) => {
             println!("drawing");
             let mut command_encoder = context
                 .wgpu_context

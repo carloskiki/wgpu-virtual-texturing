@@ -11,7 +11,7 @@ winit = "0.28"
 bytemuck = { version = "1", features = ["derive"] }
 nalgebra = "0.32"
 pollster = "0.3"
-thiserror = "=1.0.40"
+thiserror = "1.0.50"
 miniserde = "0.1"
 image = "0.24"
 

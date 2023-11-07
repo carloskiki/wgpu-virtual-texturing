@@ -72,7 +72,7 @@ impl Pipelines {
             });
 
         let prepass_bind_group_layouts: Vec<&wgpu::BindGroupLayout> =
-            [&[&lod_bias_bind_group_layout], &bind_group_layouts[..]].concat();
+            [&[&lod_bias_bind_group_layout], bind_group_layouts].concat();
         let prepass_pipeline_layout =
             context
                 .device

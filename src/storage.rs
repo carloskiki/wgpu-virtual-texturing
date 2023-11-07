@@ -4,7 +4,6 @@ use std::{
     path::PathBuf,
 };
 
-use image::Pixel;
 use miniserde::{Deserialize, MiniSerialize};
 use thiserror::Error;
 

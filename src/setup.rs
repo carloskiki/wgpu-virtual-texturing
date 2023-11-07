@@ -1,4 +1,4 @@
-use std::{f32, num::NonZeroU64, sync::Arc};
+use std::{f32, sync::Arc};
 
 use wgpu::util::DeviceExt;
 
@@ -158,10 +158,10 @@ impl VirtualTexturingContext {
 
     pub fn render(&self, command_encoder: &mut wgpu::CommandEncoder) -> wgpu::SurfaceTexture {
         let output = self.wgpu_context.surface.get_current_texture().unwrap();
-        let ref view = output
+        let view = &output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-        let ref depth_view = self
+        let depth_view = &self
             .pipelines
             .render_depth_texture
             .create_view(&Default::default());

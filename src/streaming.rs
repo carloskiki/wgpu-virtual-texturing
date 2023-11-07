@@ -31,7 +31,7 @@ impl StreamingHandle {
             let buffer_view = move_buffer.slice(..).get_mapped_range();
             move_buffer.unmap();
             let mut required_pages = buffer_view
-                .chunks_exact(PREPASS_BYTES_PER_TEXEL as usize)
+                .chunks_exact(PREPASS_BYTES_PER_TEXEL)
                 .map(PageId::from_bytes)
                 .collect::<Vec<_>>();
 
