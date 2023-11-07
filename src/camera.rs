@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use winit::event::{ElementState, VirtualKeyCode};
+use winit::{event::ElementState, keyboard::KeyCode};
 
 #[derive(Debug)]
 pub struct Camera {
@@ -79,29 +79,31 @@ impl CameraController {
         }
     }
 
-    pub fn process_keyboard(&mut self, key: VirtualKeyCode, state: ElementState) -> bool {
+    // TODO: change this to respect new keyboard system in winit (or just understand the new
+    // keyboard system)
+    pub fn process_keyboard(&mut self, key: KeyCode, state: ElementState) -> bool {
         let amount = if state == ElementState::Pressed {
             1.0
         } else {
             0.0
         };
         match key {
-            VirtualKeyCode::W | VirtualKeyCode::Up => {
+            KeyCode::KeyW | KeyCode::ArrowUp => {
                 self.amount_forward = amount;
             }
-            VirtualKeyCode::S | VirtualKeyCode::Down => {
+            KeyCode::KeyS | KeyCode::ArrowDown => {
                 self.amount_backward = amount;
             }
-            VirtualKeyCode::A | VirtualKeyCode::Left => {
+            KeyCode::KeyA | KeyCode::ArrowLeft => {
                 self.amount_left = amount;
             }
-            VirtualKeyCode::D | VirtualKeyCode::Right => {
+            KeyCode::KeyD | KeyCode::ArrowRight => {
                 self.amount_right = amount;
             }
-            VirtualKeyCode::Space => {
+            KeyCode::Space => {
                 self.amount_up = amount;
             }
-            VirtualKeyCode::LShift => {
+            KeyCode::ShiftLeft => {
                 self.amount_down = amount;
             }
             _ => return false,

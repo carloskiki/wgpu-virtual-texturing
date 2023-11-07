@@ -18,7 +18,7 @@ impl WgpuContext {
         let window_size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
-            dx12_shader_compiler: Default::default(),
+            ..Default::default()
         });
         let surface = unsafe { instance.create_surface(&window) }.unwrap();
         let adapter = instance
@@ -135,17 +135,20 @@ impl VirtualTexturingContext {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Load,
-                    store: true,
+                     store: wgpu::StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &prepass_depth_view,
                 depth_ops: Some(wgpu::Operations {
                     load: wgpu::LoadOp::Clear(1.0),
-                    store: true,
+                     store: wgpu::StoreOp::Store,
                 }),
                 stencil_ops: None,
             }),
+            // TODO: Consider monitoring with queries.
+            timestamp_writes: None,
+            occlusion_query_set: None,
         });
         render_pass.set_pipeline(&self.pipelines.prepass_pipeline);
         render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
@@ -175,17 +178,20 @@ impl VirtualTexturingContext {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: depth_view,
                 depth_ops: Some(wgpu::Operations {
                     load: wgpu::LoadOp::Clear(1.0),
-                    store: true,
+                     store: wgpu::StoreOp::Store,
                 }),
                 stencil_ops: None,
             }),
+            // TODO: Consider monitoring with queries.
+            timestamp_writes: None,
+            occlusion_query_set: None,
         });
 
         render_pass.set_pipeline(&self.pipelines.render_pipeline);
@@ -232,10 +238,13 @@ impl VirtualTexturingContext {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                    store: true,
+                     store: wgpu::StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: None,
+            // TODO: Consider monitoring with queries.
+            timestamp_writes: None,
+            occlusion_query_set: None,
         });
 
         render_pass.set_pipeline(&self.pipelines.debug_prepass_pipeline);
