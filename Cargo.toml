@@ -19,5 +19,5 @@ image = "0.24"
 assert_fs = "1"
 predicates = "3"
 
-[profile.bench]
+[profile.release]
 debug = true
