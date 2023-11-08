@@ -146,7 +146,6 @@ impl VirtualTexturingContext {
                 }),
                 stencil_ops: None,
             }),
-            // TODO: Consider monitoring with queries.
             timestamp_writes: None,
             occlusion_query_set: None,
         });
@@ -189,7 +188,6 @@ impl VirtualTexturingContext {
                 }),
                 stencil_ops: None,
             }),
-            // TODO: Consider monitoring with queries.
             timestamp_writes: None,
             occlusion_query_set: None,
         });
@@ -242,7 +240,6 @@ impl VirtualTexturingContext {
                 },
             })],
             depth_stencil_attachment: None,
-            // TODO: Consider monitoring with queries.
             timestamp_writes: None,
             occlusion_query_set: None,
         });

@@ -9,7 +9,8 @@ use virt_texture::{
 use winit::event::{Event, WindowEvent};
 
 fn main() {
-    let event_loop = winit::event_loop::EventLoop::new().expect("the event loop to be created");
+    let event_loop = winit::event_loop::EventLoop::new()
+        .expect("the event loop creation to succeed since we are on the main thread");
     let window = winit::window::WindowBuilder::new()
         .with_title("Virtual Texturing Demo")
         .build(&event_loop)
@@ -37,26 +38,28 @@ fn main() {
         .queue
         .submit(Some(command_encoder.finish()));
 
-    event_loop.run(|event, target| match event {
-        Event::WindowEvent { event, .. } => match event {
-            WindowEvent::CloseRequested => target.exit(),
-            WindowEvent::RedrawRequested => {
-                println!("drawing");
-                let mut command_encoder = context
-                    .wgpu_context
-                    .device
-                    .create_command_encoder(&Default::default());
-                context.prepass(&mut command_encoder, &FOUR_TRIANGLES);
-                // let output = context.debug_prepass_render(&mut command_encoder);
+    event_loop
+        .run(|event, target| match event {
+            Event::WindowEvent { event, .. } => match event {
+                WindowEvent::CloseRequested => target.exit(),
+                WindowEvent::RedrawRequested => {
+                    println!("drawing");
+                    let mut command_encoder = context
+                        .wgpu_context
+                        .device
+                        .create_command_encoder(&Default::default());
+                    context.prepass(&mut command_encoder, &FOUR_TRIANGLES);
+                    // let output = context.debug_prepass_render(&mut command_encoder);
 
-                // context
-                //     .wgpu_context
-                //     .queue
-                //     .submit(Some(command_encoder.finish()));
-                // output.present();
+                    // context
+                    //     .wgpu_context
+                    //     .queue
+                    //     .submit(Some(command_encoder.finish()));
+                    // output.present();
+                }
+                _ => (),
             },
             _ => (),
-        },
-        _ => (),
-    }).unwrap();
+        })
+        .unwrap();
 }

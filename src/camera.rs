@@ -79,8 +79,6 @@ impl CameraController {
         }
     }
 
-    // TODO: change this to respect new keyboard system in winit (or just understand the new
-    // keyboard system)
     pub fn process_keyboard(&mut self, key: KeyCode, state: ElementState) -> bool {
         let amount = if state == ElementState::Pressed {
             1.0
