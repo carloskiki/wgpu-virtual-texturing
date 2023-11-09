@@ -11,13 +11,6 @@ const PAGE_SIZE: usize = 128;
 const PAGE_STRIDE: usize = PAGE_SIZE - 2 * PAGE_BORDER_SIZE;
 const PAGE_BORDER_SIZE: usize = 4;
 
-pub enum FitOperation {
-    Upscale,
-    Downscale,
-    Pad,
-    Clip,
-}
-
 pub struct TextureStorage {
     directory: std::path::PathBuf,
     metadata: TextureMetadata,
@@ -106,8 +99,7 @@ impl TextureStorage {
             })?;
             Ok::<(), TextureStorageError>(())
         })?;
-        (row == (self.metadata.dimensions.1 >> mip).max(1))
-            .then(|| log::info!("completed mip level {}", mip));
+        log::debug!("wrote row {} of mip level {}", row, mip);
 
         Ok(())
     }
@@ -118,13 +110,9 @@ impl TextureStorage {
     /// if set to `None`, the texture must have power of two sidelengths (e.g., 4096x1024).
     pub fn import_texture(
         &mut self,
-        fit_operation: Option<FitOperation>,
         filter_mode: image::imageops::FilterType,
         mut byte_stream: impl Read,
     ) -> Result<(), TextureStorageError> {
-        // TODO: fit operation
-        todo!("implement the texture fitting step");
-
         let texture_dimensions = self.metadata.dimensions;
         let texture_texel_width =
             texture_dimensions.0 as usize * PAGE_STRIDE + 2 * PAGE_BORDER_SIZE;
@@ -241,6 +229,12 @@ impl MipLevelGen {
         Ok(())
     }
 
+    /// The caller must ensure the following, otherwise data may corrupt:
+    ///
+    /// - The generator is not in the possesion of any current row.
+    /// - The index of the first row is even.
+    /// - The rows are the same length.
+    /// - each row must have the appropriate size i.e., (page_width * PAGE_STRIDE + 2 * BORDER_SIZE) * bytes_per_texel * PAGE_SIZE
     fn mip_two_rows(
         &mut self,
         rows: (&[u8], &[u8]),
@@ -248,10 +242,10 @@ impl MipLevelGen {
         storage: &mut TextureStorage,
     ) -> Result<(), TextureStorageError> {
         use image::{imageops::resize, ImageBuffer, Rgba};
-        assert!(self.stored_row.is_none());
-        assert!(first_index % 2 == 0);
-        assert!(rows.0.len() == rows.1.len());
-        assert!(rows.0.len() % PAGE_SIZE == 0);
+        debug_assert!(self.stored_row.is_none());
+        debug_assert!(first_index % 2 == 0);
+        debug_assert!(rows.0.len() == rows.1.len());
+        debug_assert!(rows.0.len() % PAGE_SIZE == 0);
 
         // Current row width
         let row_width = rows.0.len() / PAGE_SIZE;
@@ -330,31 +324,25 @@ pub struct TextureMetadata {
 }
 
 impl TextureMetadata {
-    const MAX_TEXTURE_SIZE: u16 = 1 << 11;
+    const MAX_TEXTURE_SIZE: u16 = 1 << 12;
 
     /// Creates a texture from the provided number of pages per side and bytes per texel.
     ///
     /// If the number of pages is not a power of two, the next power of two will be used.
     ///
-    /// ### Errors
+    /// ### Panics
     ///
-    /// - Errors if any of the sides is bigger than 2048 (2^11).
-    pub fn from_dimensions(
-        dimensions: (u16, u16),
-        bytes_per_texel: u8,
-        fit_operation: FitOperation,
-    ) -> Self {
+    /// - If any of the sides is bigger than 4096 (2^12).
+    /// - If any of the sides is not a power of two.
+    pub fn from_dimensions(dimensions: (u16, u16), bytes_per_texel: u8) -> Self {
         assert!(dimensions.0 <= Self::MAX_TEXTURE_SIZE);
         assert!(dimensions.1 <= Self::MAX_TEXTURE_SIZE);
+        assert!(dimensions.0.is_power_of_two());
+        assert!(dimensions.1.is_power_of_two());
         // We only support RGBA8 textures for now
         assert!(bytes_per_texel == 4);
         let longest_side = dimensions.0.max(dimensions.1);
-        let adjusted_longest_side = match fit_operation {
-            FitOperation::Upscale | FitOperation::Pad => next_power_of_two(longest_side),
-            FitOperation::Downscale | FitOperation::Clip => longest_side,
-        };
-
-        let mip_levels = adjusted_longest_side.ilog2() as u8;
+        let mip_levels = longest_side.ilog2() as u8;
 
         Self {
             dimensions,
@@ -364,6 +352,10 @@ impl TextureMetadata {
     }
 
     /// Creates a square texture from the mip level.
+    /// 
+    /// ### Panics
+    ///
+    /// - If the mip level is bigger than lg(MAX_TEXTURE_SIZE).
     pub fn from_mip(mip_levels: u8, bytes_per_texel: u8) -> Self {
         assert!(mip_levels <= Self::MAX_TEXTURE_SIZE.ilog2() as u8);
         // We only support RGBA8 textures for now
@@ -378,16 +370,16 @@ impl TextureMetadata {
     }
 }
 
-fn next_power_of_two(mut n: u16) -> u16 {
-    n -= 1;
-    n |= n >> 1; // Divide by 2^k for consecutive doublings of k up to 32,
-    n |= n >> 2; // and then or the results.
-    n |= n >> 4;
-    n |= n >> 8;
-    n + 1 // The result is a number of 1 bits equal to the number
-          // of bits in the original number, plus 1. That's the
-          // next highest power of 2.
-}
+// fn next_power_of_two(mut n: u16) -> u16 {
+//     n -= 1;
+//     n |= n >> 1; // Divide by 2^k for consecutive doublings of k up to 32,
+//     n |= n >> 2; // and then or the results.
+//     n |= n >> 4;
+//     n |= n >> 8;
+//     n + 1 // The result is a number of 1 bits equal to the number
+//           // of bits in the original number, plus 1. That's the
+//           // next highest power of 2.
+// }
 
 #[cfg(test)]
 mod test {
@@ -416,7 +408,7 @@ mod test {
 
         metadata.touch().unwrap();
         metadata
-            .write_str(r#"{"side_len": 16, "bytes_per_texel": 4, "mip_levels": 4}"#)
+            .write_str(r#"{"dimensions": [16, 16], "bytes_per_texel": 4, "mip_levels": 4}"#)
             .unwrap();
 
         let _ = TextureStorage::load(Some(path), None).unwrap();
@@ -424,10 +416,11 @@ mod test {
 
     #[test]
     fn store_256_texture() -> Result<(), Box<dyn std::error::Error>> {
+        env_logger::init();
         let (mut texture_storage, _temp_dir) = texture_storage_from_mip(256_usize.ilog2() as u8);
         let bytes =
             repeat(0xFF).take(((256 * PAGE_STRIDE + 2 * PAGE_BORDER_SIZE).pow(2) * 4) as u64);
-        texture_storage.import_texture(None, image::imageops::Nearest, bytes)?;
+        texture_storage.import_texture(image::imageops::FilterType::Nearest, bytes)?;
 
         Ok(())
     }

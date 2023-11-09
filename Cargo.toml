@@ -19,6 +19,7 @@ log = "0.4"
 [dev-dependencies]
 assert_fs = "1"
 predicates = "3"
+env_logger = "0.10"
 
-[profile.release]
-debug = true
+# [profile.release]
+# debug = true
